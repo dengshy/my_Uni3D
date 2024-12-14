@@ -1,0 +1,9 @@
+{
+    "name": "my_uni3d",
+    "image":"uni3d",
+    "runArgs": ["--gpus=all"],
+    "remoteUser": "root",
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+    
+}

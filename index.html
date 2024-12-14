@@ -1,0 +1,97 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>HTML File Viewer</title>
+    </head>
+    <body>
+        <h1 style="text-align: center;">HTML File Viewer</h1>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <label for="dataset" style="font-size: 1.5em;">Dataset:</label>
+            <select id="dataset" style="font-size: 1.2em;">
+                <option value="">-- Select Dataset --</option>
+            </select>
+            
+            <label for="class" style="font-size: 1.5em; margin-left: 20px;">Class:</label>
+            <select id="class" style="font-size: 1.2em;">
+                <option value="">-- Select Class --</option>
+            </select>
+            
+            <label for="file" style="font-size: 1.5em; margin-left: 20px;">File:</label>
+            <select id="file" style="font-size: 1.2em;">
+                <option value="">-- Select File --</option>
+            </select>
+        </div>
+
+        <!-- iframe 用于显示选定的 HTML 文件 -->
+        <iframe id="htmlViewer" style="width: 100%; height: 90vh; border: none;"></iframe>
+
+        <script>
+            // 数据结构
+            const data = {"modelnet": {"chair": ["chair1.html", "chair10.html", "chair100.html", "chair11.html", "chair12.html", "chair13.html", "chair14.html", "chair15.html", "chair16.html", "chair17.html", "chair18.html", "chair19.html", "chair2.html", "chair20.html", "chair21.html", "chair22.html", "chair23.html", "chair24.html", "chair25.html", "chair26.html", "chair27.html", "chair28.html", "chair29.html", "chair3.html", "chair30.html", "chair31.html", "chair32.html", "chair33.html", "chair34.html", "chair35.html", "chair36.html", "chair37.html", "chair38.html", "chair39.html", "chair4.html", "chair40.html", "chair41.html", "chair42.html", "chair43.html", "chair44.html", "chair45.html", "chair46.html", "chair47.html", "chair48.html", "chair49.html", "chair5.html", "chair50.html", "chair51.html", "chair52.html", "chair53.html", "chair54.html", "chair55.html", "chair56.html", "chair57.html", "chair58.html", "chair59.html", "chair6.html", "chair60.html", "chair61.html", "chair62.html", "chair63.html", "chair64.html", "chair65.html", "chair66.html", "chair67.html", "chair68.html", "chair69.html", "chair7.html", "chair70.html", "chair71.html", "chair72.html", "chair73.html", "chair74.html", "chair75.html", "chair76.html", "chair77.html", "chair78.html", "chair79.html", "chair8.html", "chair80.html", "chair81.html", "chair82.html", "chair83.html", "chair84.html", "chair85.html", "chair86.html", "chair87.html", "chair88.html", "chair89.html", "chair9.html", "chair90.html", "chair91.html", "chair92.html", "chair93.html", "chair94.html", "chair95.html", "chair96.html", "chair97.html", "chair98.html", "chair99.html"], "desk": ["desk1.html", "desk10.html", "desk11.html", "desk12.html", "desk13.html", "desk14.html", "desk15.html", "desk16.html", "desk17.html", "desk18.html", "desk19.html", "desk2.html", "desk20.html", "desk21.html", "desk22.html", "desk23.html", "desk24.html", "desk25.html", "desk26.html", "desk27.html", "desk28.html", "desk29.html", "desk3.html", "desk30.html", "desk31.html", "desk32.html", "desk33.html", "desk34.html", "desk35.html", "desk36.html", "desk37.html", "desk38.html", "desk39.html", "desk4.html", "desk40.html", "desk41.html", "desk42.html", "desk43.html", "desk44.html", "desk45.html", "desk46.html", "desk47.html", "desk48.html", "desk49.html", "desk5.html", "desk50.html", "desk51.html", "desk52.html", "desk53.html", "desk54.html", "desk55.html", "desk56.html", "desk57.html", "desk58.html", "desk59.html", "desk6.html", "desk60.html", "desk61.html", "desk62.html", "desk63.html", "desk64.html", "desk65.html", "desk66.html", "desk67.html", "desk68.html", "desk69.html", "desk7.html", "desk70.html", "desk71.html", "desk72.html", "desk73.html", "desk74.html", "desk75.html", "desk76.html", "desk77.html", "desk78.html", "desk79.html", "desk8.html", "desk80.html", "desk81.html", "desk82.html", "desk83.html", "desk84.html", "desk85.html", "desk86.html", "desk9.html"]}, "scannet": {"airplane": ["airplane1.html", "airplane10.html", "airplane100.html", "airplane11.html", "airplane12.html", "airplane13.html", "airplane14.html", "airplane15.html", "airplane16.html", "airplane17.html", "airplane18.html", "airplane19.html", "airplane2.html", "airplane20.html", "airplane21.html", "airplane22.html", "airplane23.html", "airplane24.html", "airplane25.html", "airplane26.html", "airplane27.html", "airplane28.html", "airplane29.html", "airplane3.html", "airplane30.html", "airplane31.html", "airplane32.html", "airplane33.html", "airplane34.html", "airplane35.html", "airplane36.html", "airplane37.html", "airplane38.html", "airplane39.html", "airplane4.html", "airplane40.html", "airplane41.html", "airplane42.html", "airplane43.html", "airplane44.html", "airplane45.html", "airplane46.html", "airplane47.html", "airplane48.html", "airplane49.html", "airplane5.html", "airplane50.html", "airplane51.html", "airplane52.html", "airplane53.html", "airplane54.html", "airplane55.html", "airplane56.html", "airplane57.html", "airplane58.html", "airplane59.html", "airplane6.html", "airplane60.html", "airplane61.html", "airplane62.html", "airplane63.html", "airplane64.html", "airplane65.html", "airplane66.html", "airplane67.html", "airplane68.html", "airplane69.html", "airplane7.html", "airplane70.html", "airplane71.html", "airplane72.html", "airplane73.html", "airplane74.html", "airplane75.html", "airplane76.html", "airplane77.html", "airplane78.html", "airplane79.html", "airplane8.html", "airplane80.html", "airplane81.html", "airplane82.html", "airplane83.html", "airplane84.html", "airplane85.html", "airplane86.html", "airplane87.html", "airplane88.html", "airplane89.html", "airplane9.html", "airplane90.html", "airplane91.html", "airplane92.html", "airplane93.html", "airplane94.html", "airplane95.html", "airplane96.html", "airplane97.html", "airplane98.html", "airplane99.html"]}};
+
+            // 获取筛选框和 iframe 元素
+            const datasetSelect = document.getElementById("dataset");
+            const classSelect = document.getElementById("class");
+            const fileSelect = document.getElementById("file");
+            const htmlViewer = document.getElementById("htmlViewer");
+
+            // 初始化 Dataset 下拉框
+            Object.keys(data).forEach(dataset => {
+                const option = document.createElement("option");
+                option.value = dataset;
+                option.textContent = dataset;
+                datasetSelect.appendChild(option);
+            });
+
+            // 更新 Class 下拉框
+            datasetSelect.addEventListener("change", () => {
+                classSelect.innerHTML = '<option value="">-- Select Class --</option>';
+                fileSelect.innerHTML = '<option value="">-- Select File --</option>';
+                htmlViewer.src = ""; // 清空 iframe
+
+                const selectedDataset = datasetSelect.value;
+                if (selectedDataset && data[selectedDataset]) {
+                    Object.keys(data[selectedDataset]).forEach(className => {
+                        const option = document.createElement("option");
+                        option.value = className;
+                        option.textContent = className;
+                        classSelect.appendChild(option);
+                    });
+                }
+            });
+
+            // 更新 File 下拉框
+            classSelect.addEventListener("change", () => {
+                fileSelect.innerHTML = '<option value="">-- Select File --</option>';
+                htmlViewer.src = ""; // 清空 iframe
+
+                const selectedDataset = datasetSelect.value;
+                const selectedClass = classSelect.value;
+                if (selectedClass && data[selectedDataset][selectedClass]) {
+                    data[selectedDataset][selectedClass].forEach(fileName => {
+                        const option = document.createElement("option");
+                        option.value = fileName;
+                        option.textContent = fileName;
+                        fileSelect.appendChild(option);
+                    });
+                }
+            });
+
+            // 更新 iframe 内容
+            fileSelect.addEventListener("change", () => {
+                const selectedDataset = datasetSelect.value;
+                const selectedClass = classSelect.value;
+                const selectedFile = fileSelect.value;
+
+                if (selectedFile) {
+                    const filePath = `test_html/` + selectedDataset + "/" + selectedClass + "/" + selectedFile;
+                    htmlViewer.src = filePath;
+                }
+            });
+        </script>
+    </body>
+    </html>
+    
