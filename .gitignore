@@ -9,3 +9,4 @@ test_html
 seg_res_html
 logs
 models/__pycache__
+.devcontainer
