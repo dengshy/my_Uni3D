@@ -8,6 +8,7 @@ from data.dataloader import CustomDataLoader
 import os
 import matplotlib.pyplot as plt  # 导入matplotlib库用于可视化
 from utils.draw import save_point_cloud_html
+import numpy as np
 # import debugpy
 # try:
 #     # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
@@ -20,8 +21,9 @@ def main(args):
     args, ds_init = parse_args(args)
     # 初始化文本编码器
     tokenizer = SimpleTokenizer()
+    
     # 自定义的dataset负责处理数据，最重要的是__getitem__
-    test_dataset = utils.get_dataset(None, tokenizer, args, "val")
+    test_dataset = utils.get_dataset(None, tokenizer, args, "val_lvis")
     # dataloader只负责加载数据
 
     test_loader = DataLoader(
@@ -41,7 +43,10 @@ def main(args):
         print(label_name)  # 打印当前批次的标签名称
         print(rgb.shape)  # 打印当前批次RGB信息的形状
         print("-" * 50)  # 打印分隔符，便于查看每个批次的内容
-        # if batch_idx == 0:
+                # 转换为灰度值
+        weights = np.array([0.2989, 0.5870, 0.1140])  # 灰度加权系数
+        gray_scale = np.dot(rgb, weights)  # [B, 10000]
+        print(gray_scale.shape)
         # 假设 xyz 的形状是 (batch_size, N, 3)，即每个批次有 `batch_size` 个点云数据
         # 对于每个点云，生成一个3D可视化
         for i in range(xyz.shape[0]):  # 遍历每个点云
@@ -49,10 +54,11 @@ def main(args):
                     xyz[i, :, 0],
                     xyz[i, :, 1],
                     xyz[i, :, 2],
-                    rgb[i, :,2],
-                    args.seg_cat,
-                    batch_idx*8+i+1,output_directory="test_html",dataset_name="scannet"
+                    gray_scale[i,:],
+                    label_name[i],
+                    batch_idx*8+i+1,output_directory="test_html",dataset_name="objaverse_lvis"
                 )
-
+        if batch_idx >=1:
+            break
 if __name__ == "__main__":
     main(sys.argv[1:])

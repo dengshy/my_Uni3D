@@ -152,21 +152,10 @@ def test_zeroshot_3d_core(
     with open(os.path.join("./data", "templates.json")) as f:
         templates = json.load(f)[args.validate_dataset_prompt]
 
-    # # 加载标签
-    # with open(os.path.join("./data", "labels.json")) as f:
-    #     labels = json.load(f)[validate_dataset_name]
-
     # 加载分割提示
     with open(os.path.join("./data", "part_temple.json")) as f:
         part_data = json.load(f)
 
-    # part_temple = {}  # 分割提示
-    # for label in labels:
-    #     if label in part_data:
-    #         part_temple[label] = part_data[label]  # 按标签取出分割提示
-    #     else:
-    #         logging.warning(f"没有{label}的分割提示模板，请添加")
-    #         part_temple[label] = ""
     part_temple = part_data[args.seg_cat]
 
     with torch.no_grad():
@@ -194,7 +183,7 @@ def test_zeroshot_3d_core(
             )  # 再次归一化[1024]
             segmentation_texts_features.append(clip_embeddings)
 
-        # 将分类提示堆叠起来[N, 1024]
+        # 将分类提示堆叠起来[K, 1024]
         segmentation_texts_features = torch.stack(segmentation_texts_features, dim=0)
         for batch_idx, (xyz, label_index, label_name, rgb) in enumerate(test_loder):
             # non_blocking 异步执行数据移动操作，需要配合 pin_memory=True 确保数据在锁业内存中
@@ -203,84 +192,74 @@ def test_zeroshot_3d_core(
             feature = torch.cat((xyz, rgb), dim=-1)  # 连接点云位置和颜色信息
 
             # 编码点云
-            # patch_features[B, 512, 1024],
-            # my_idx[B, 512, 64],
+            # patch_features[B, G, 1024]
+            # my_idx[B, G, M],
             # xyz[B, 10000, 3],
             # rgb[B, 10000, 3]
             patch_features, my_idx = utils.get_model(model).encode_pc(feature)
             patch_features = patch_features / patch_features.norm(
                 dim=-1, keepdim=True
-            )  # [B, 512, 1024] 每个patch的特征向量
+            )  # [B, G, 1024] 每个patch的特征向量
 
-            # 计算每个patch与每个文本提示的相似性 得到[B, 512, N]
+            # 计算每个patch与每个文本提示的相似性 得到[B, G, K]
             similarity_patch_part = (
                 patch_features.float() @ segmentation_texts_features.float().t()
             )
 
             # 返回最大值的索引 argmax
-            # 返回值则为 max [B, 512]
+            # 返回值则为 max [B, G]
             patch_seg_result = torch.argmax(similarity_patch_part, dim=-1)
 
-            # 创建一个[B, N, M]的全0张量 batch_size N个点 每个在M类上被分类的次数
-            M = segmentation_texts_features.shape[0]
+            # 创建一个[B, N, K]的全0张量 batch_size N个点 每个在K类上被分类的次数
+            K = segmentation_texts_features.shape[0]
             B, N, _ = xyz.shape
-            point_seg_result = torch.zeros(B, N, M, device=args.device)  # [B, 10000, M]
+            point_seg_result = torch.zeros(B, N, K, device=args.device)  # [B, 10000, K]
 
             # 优化后的逻辑：去除三重循环，使用张量操作实现
             # 将 patch_seg_result 映射到点的维度
-            # patch_seg_result 的形状是 [B, 512]，扩展后是 [B, 512, 64] 与 my_idx 形状一致
+            # patch_seg_result 的形状是 [B, G]，扩展后是 [B, G, M] 与 my_idx 形状一致
             point_part_ids = patch_seg_result.unsqueeze(-1).expand(
                 -1, -1, my_idx.shape[-1]
             )  # 每个点的分类结果
 
-            # 将 my_idx 展平为 [B, 512 * 64]
+            # 将 my_idx 展平为 [B, G * M]
             flat_idx = my_idx.view(B, -1)  # 点索引
 
-            # 将 point_part_ids 展平为 [B, 512 * 64]
+            # 将 point_part_ids 展平为 [B, G * M]
             # 使用view内存不连续问题，报错
             # flat_part_ids = point_part_ids.view(B, -1)  # 每个点的分类结果展平
             flat_part_ids = point_part_ids.reshape(B, -1)
-            # 构造 one-hot 表示，形状为 [B, 512 * 64, M]
-            one_hot_part_ids = torch.nn.functional.one_hot(flat_part_ids, M).float()
+            # 构造 one-hot 表示，形状为 [B, G * M, K]
+            one_hot_part_ids = torch.nn.functional.one_hot(flat_part_ids, K).float()
 
             # 使用 scatter_add_ 更新 point_seg_result
             # 以 flat_idx 为索引， 将第i个点的one-hot编码，累加到point_seg_result[b][i]上
             for b in range(B):
                 point_seg_result[b].scatter_add_(
                     dim=0,  # 在点索引维度上聚合
-                    index=flat_idx[b]  # 点的索引512 * 64
-                    .unsqueeze(-1)  # 添加一个维度 [512 * 64, 1]
+                    index=flat_idx[b]  # 点的索引G * M
+                    .unsqueeze(-1)  # 添加一个维度 [G * M, 1]
                     .expand(
-                        -1, M
-                    ),  # 点索引扩展到 [512 * 64, M] 不会增加新的操作  ps:extend 列表；expand 张量不创建新的数据，repeat会真实创建
-                    src=one_hot_part_ids[b],  # 对应的 one-hot 编码 [512 * 64, M]
+                        -1, K
+                    ),  # 点索引扩展到 [G * M, K] 不会增加新的操作  ps:extend用于列表；expand用于张量不创建新的数据，repeat会真实创建
+                    src=one_hot_part_ids[b],  # 对应的 one-hot 编码 [B * G, K]
                 )
 
             # 根据每个类别的分类次数，投票确定每个点该分为哪一类
-            point_seg_result = point_seg_result.max(dim=-1)[1]  # [B, N, M]->[B, N]
+            point_seg_result = point_seg_result.max(dim=-1)[1]  # [B, N, K]->[B, N]
 
-            # 对 point_seg_result 的每个元素应用 exp 操作
-            point_seg_result_exp = torch.exp(point_seg_result)  # [B, N]
-
-            # 在指定维度 N 上归一化到 [0, 1] 范围
-            point_seg_result_exp_normalized = (
-                point_seg_result_exp / point_seg_result_exp.max(dim=1, keepdim=True)[0]
-            )
-
-            # 缩放到 [0, 255] 的 RGB 范围，并转换为整数类型
-            point_seg_result_rgb = (
-                (point_seg_result_exp_normalized * 255).clamp(0, 255).to(torch.uint8)
-            )
             xyz_cpu = xyz.cpu().numpy()
-            point_seg_result_rgb_cpu = point_seg_result_rgb.cpu().numpy()
+            point_seg_result_rgb = point_seg_result.cpu().numpy()
             for i in range(B):  # 遍历每个点云
                 save_point_cloud_html(
                     xyz_cpu[i, :, 0],
                     xyz_cpu[i, :, 1],
                     xyz_cpu[i, :, 2],
-                    point_seg_result_rgb_cpu[i, :],
+                    point_seg_result_rgb[i, :],
                     args.seg_cat,
-                    batch_idx*8+i+1,
+                    batch_idx * 8 + i + 1,
+                    part_data,
+                    dataset_name="modelnet",
                 )
 
 

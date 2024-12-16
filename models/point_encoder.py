@@ -223,10 +223,10 @@ class PointcloudEncoder(nn.Module):
     def forward(self, pts, colors):
         # 原始点云pts[10000, 3] ,color[10000, 3]
 
-        # center[B, 512, 3] features[B, 512, 64, 6]
+        # center[B, G, 3] features[B, G, M, 6]
         neighborhood, center, features, my_idx = self.group_divider(pts, colors)  # 定义在Group类
 
-        # 把特征编码成[B, 512, 512]
+        # 把特征编码成[B, G, M]
         group_input_tokens = self.encoder(features)
 
         # 经过线形层，升维到ViT需要的维度
@@ -235,7 +235,7 @@ class PointcloudEncoder(nn.Module):
         # 扩展cls_token，满足batchsize维度
         cls_tokens = self.cls_token.expand(group_input_tokens.size(0), -1, -1)
         cls_pos = self.cls_pos.expand(group_input_tokens.size(0), -1, -1)
-
+        
         # 对中心点位置编码
         pos = self.pos_embed(center)
 
@@ -251,10 +251,13 @@ class PointcloudEncoder(nn.Module):
         for i, blk in enumerate(self.visual.blocks):
             x = blk(x)
 
-        # 使用patch features而不是cls feature
+        # 使用patch features
         patch_features = self.visual.norm(x[:, 1:, :])
+        cls_token = self.visual.norm(x[:, 0, :])
+        cls_token=cls_token.unsqueeze(1).expand(-1,patch_features.shape[1],-1)
+        patch_features=patch_features+cls_token
         patch_features = self.visual.fc_norm(patch_features)
-
+       
         patch_features = self.trans2embed(patch_features)
 
         return patch_features, my_idx

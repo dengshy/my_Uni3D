@@ -498,14 +498,14 @@ def parse_args(args):
 
     # 设置点云 Transformer 中的分组大小，默认为 64。
     parser.add_argument(
-        "--group-size", type=int, default=64, help="Pointcloud Transformer group size."
+        "--group-size", type=int, default=96, help="Pointcloud Transformer group size."
     )
 
     # 设置点云 Transformer 中的分组数量，默认为 512。
     parser.add_argument(
         "--num-group",
         type=int,
-        default=512,
+        default=1024,
         help="Pointcloud Transformer number of groups.",
     )
 

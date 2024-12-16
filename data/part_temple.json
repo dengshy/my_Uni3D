@@ -1,15 +1,7 @@
 {
     "airplane": [
-        "An engine of a plane",
-        "A main wing of a plane",
-        "A tail wing of a plane",
-        "A body of a plane"
-    ],
-
-    "desk": [
-        "An engine of a plane",
-        "A main wing of a plane",
-        "A tail wing of a plane",
-        "A body of a plane"
+        "left part of a plane",
+        "right part of a plane"
+        
     ]
 }
