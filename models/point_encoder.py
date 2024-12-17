@@ -186,9 +186,9 @@ class PointcloudEncoder(nn.Module):
     def __init__(self, point_transformer, args):
         super().__init__()
 
-        self.trans_dim = args.pc_feat_dim #点云编码后的特征
-        self.embed_dim = args.embed_dim #clip编码后的维度
-        self.group_size = args.group_size 
+        self.trans_dim = args.pc_feat_dim  # 点云编码后的特征
+        self.embed_dim = args.embed_dim  # clip编码后的维度
+        self.group_size = args.group_size
         self.num_group = args.num_group
 
         # grouper
@@ -224,7 +224,9 @@ class PointcloudEncoder(nn.Module):
         # 原始点云pts[10000, 3] ,color[10000, 3]
 
         # center[B, G, 3] features[B, G, M, 6]
-        neighborhood, center, features, my_idx = self.group_divider(pts, colors)  # 定义在Group类
+        neighborhood, center, features, my_idx = self.group_divider(
+            pts, colors
+        )  # 定义在Group类
 
         # 把特征编码成[B, G, M]
         group_input_tokens = self.encoder(features)
@@ -235,7 +237,7 @@ class PointcloudEncoder(nn.Module):
         # 扩展cls_token，满足batchsize维度
         cls_tokens = self.cls_token.expand(group_input_tokens.size(0), -1, -1)
         cls_pos = self.cls_pos.expand(group_input_tokens.size(0), -1, -1)
-        
+
         # 对中心点位置编码
         pos = self.pos_embed(center)
 
@@ -246,18 +248,32 @@ class PointcloudEncoder(nn.Module):
 
         # ViT 完整的输入
         x = x + pos
-
+        x0 = x[:, 1:, :]
         # ViT编码
         for i, blk in enumerate(self.visual.blocks):
             x = blk(x)
+            if i + 1 == 4:
+                x4 = x
+            if i + 1 == 8:
+                x8 = x
 
+        # 提取出第四层和第八层
+        x4 = self.visual.norm(x4[:, 1:, :])
+        x8 = self.visual.norm(x8[:, 1:, :])
         # 使用patch features
-        patch_features = self.visual.norm(x[:, 1:, :])
-        cls_token = self.visual.norm(x[:, 0, :])
-        cls_token=cls_token.unsqueeze(1).expand(-1,patch_features.shape[1],-1)
-        patch_features=patch_features+cls_token
+        x12 = self.visual.norm(x[:, 1:, :])
+        cls_token = self.visual.norm(x[:, 0, :])  # 添加全局信息
+        cls_token = cls_token.unsqueeze(1).expand(-1, x.shape[1] - 1, -1)
+        weights = torch.tensor([1.0, 1.0, 1.0, 100.0, 20.0])
+        patch_features = (
+            x0 * weights[0]
+            + x4 * weights[1]
+            + x8 * weights[2]
+            + x12 * weights[3]
+            + cls_token * weights[4]
+        )
         patch_features = self.visual.fc_norm(patch_features)
-       
+
         patch_features = self.trans2embed(patch_features)
 
         return patch_features, my_idx

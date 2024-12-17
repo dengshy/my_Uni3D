@@ -35,7 +35,7 @@ def parse_args(args):
     parser.add_argument(
         "--pc-model",
         type=str,
-        default="eva02_base_patch14_448",
+        default="eva_giant_patch14_560",
         help="Name of pointcloud backbone to use.",
     )
 
@@ -44,7 +44,7 @@ def parse_args(args):
     parser.add_argument(
         "--ckpt-path",
         type=str,
-        default="checkpoints/model.pt",
+        default="checkpoints/model_giant.pt",
         help="Path to the model checkpoint.",
     )
 
@@ -491,21 +491,21 @@ def parse_args(args):
         help="whether to use height informatio, by default enabled with PointNeXt.",
     )
 
-    # 设置点云特征的维度，默认为 768。
+    # 设置点云特征的维度
     parser.add_argument(
-        "--pc_feat_dim", type=int, default=768, help="Pointcloud feature dimension."
+        "--pc_feat_dim", type=int, default=1408, help="Pointcloud feature dimension."
     )
 
     # 设置点云 Transformer 中的分组大小，默认为 64。
     parser.add_argument(
-        "--group-size", type=int, default=96, help="Pointcloud Transformer group size."
+        "--group-size", type=int, default=64, help="Pointcloud Transformer group size."
     )
 
     # 设置点云 Transformer 中的分组数量，默认为 512。
     parser.add_argument(
         "--num-group",
         type=int,
-        default=1024,
+        default=512,
         help="Pointcloud Transformer number of groups.",
     )
 

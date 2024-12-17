@@ -1,7 +1,8 @@
 {
     "airplane": [
-        "left part of a plane",
-        "right part of a plane"
+        "wing of a plane",
         
+        "body of a plane",
+        "tail wing of a plane"
     ]
 }

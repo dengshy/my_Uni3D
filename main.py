@@ -208,7 +208,8 @@ def test_zeroshot_3d_core(
 
             # 返回最大值的索引 argmax
             # 返回值则为 max [B, G]
-            patch_seg_result = torch.argmax(similarity_patch_part, dim=-1)
+            patch_seg_result_value,patch_seg_result = torch.max(similarity_patch_part, dim=-1)
+
 
             # 创建一个[B, N, K]的全0张量 batch_size N个点 每个在K类上被分类的次数
             K = segmentation_texts_features.shape[0]
