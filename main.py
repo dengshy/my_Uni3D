@@ -25,16 +25,29 @@ import models.uni3d as models
 import os
 import logging
 from utils.draw import save_point_cloud_html
+from kmeans_pytorch import kmeans
+import debugpy
 
-# import debugpy
+try:
+    # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+    debugpy.listen(("localhost", 9501))
+    print("Waiting for debugger attach")
+    debugpy.wait_for_client()
+except Exception as e:
+    pass
 
-# try:
-#     # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
-#     debugpy.listen(("localhost", 9501))
-#     print("Waiting for debugger attach")
-#     debugpy.wait_for_client()
-# except Exception as e:
-#     pass
+# 全局变量
+class_counters = {}
+
+
+# 定义函数来更新计数器
+def update_class_counter(class_name):
+    global class_counters  # 使用 global 关键字
+    if class_name not in class_counters:
+        class_counters[class_name] = 1
+    else:
+        class_counters[class_name] += 1
+    print(f"Class '{class_name}' Counter: {class_counters[class_name]}")
 
 
 def random_seed(seed=42, rank=0):
@@ -196,23 +209,61 @@ def test_zeroshot_3d_core(
             # my_idx[B, G, M],
             # xyz[B, 10000, 3],
             # rgb[B, 10000, 3]
-            patch_features, my_idx = utils.get_model(model).encode_pc(feature)
+            patch_features, my_idx, cls_token = utils.get_model(model).encode_pc(
+                feature
+            )
             patch_features = patch_features / patch_features.norm(
                 dim=-1, keepdim=True
             )  # [B, G, 1024] 每个patch的特征向量
 
-            # 计算每个patch与每个文本提示的相似性 得到[B, G, K]
-            similarity_patch_part = (
-                patch_features.float() @ segmentation_texts_features.float().t()
-            )
+            # 使用k-means 类聚检查patch_features的效果
+            batch_labels = []
+            batch_cluster_centers = []
+
+            for i in range(patch_features.shape[0]):
+                # 当前 batch 的特征
+                current_batch_features = patch_features[i]  # [G, 1024]
+
+                # 使用 kmeans-pytorch 聚类
+                # 返回cluster_ids_x 分组信息[G]  cluster_centers中心点信息[K, 1024]
+                cluster_ids_x, cluster_centers = kmeans(
+                    X=current_batch_features,  # 输入特征
+                    num_clusters=args.k_means_num,  # 聚类数
+                    distance="euclidean",  # 使用欧几里得距离
+                    device=xyz.device,  # 设备
+                )
+
+                # 保存当前 batch 的聚类结果
+                batch_labels.append(cluster_ids_x)  # 聚类标签
+
+                # batch_cluster_centers.append(cluster_centers)  # 聚类中心
+
+            # 确保 batch_cluster_centers 是一个 tensor 类型
+            # stack 将 [B, K, 1024] 的单个张量堆叠在一起
+            # batch_cluster_centers = torch.stack(batch_cluster_centers).to(xyz.device)
+            batch_labels = torch.stack(batch_labels).to(xyz.device)
+
+            # # 计算每个patch与每个文本提示的相似性 得到[B, G, K]
+            # similarity_patch_centers = (
+            #     batch_cluster_centers.float() @ segmentation_texts_features.float().t()
+            # )
+
+            # # 计算每个patch与每个文本提示的相似性 得到[B, G, K]
+            # similarity_patch_part = (
+            #     patch_features.float() @ segmentation_texts_features.float().t()
+            # )
 
             # 返回最大值的索引 argmax
             # 返回值则为 max [B, G]
-            patch_seg_result_value,patch_seg_result = torch.max(similarity_patch_part, dim=-1)
+            # patch_seg_result_value, patch_seg_result = torch.max(
+            #     similarity_patch_part, dim=-1
+            # )
 
-
-            # 创建一个[B, N, K]的全0张量 batch_size N个点 每个在K类上被分类的次数
-            K = segmentation_texts_features.shape[0]
+            ##检查patch类聚效果##
+            patch_seg_result = batch_labels
+            ####
+            # 创建一个[B, N, K]的全0张量 batch_size N个点 每个在K-means类上被分类的次数
+            K = args.k_means_num
             B, N, _ = xyz.shape
             point_seg_result = torch.zeros(B, N, K, device=args.device)  # [B, 10000, K]
 
@@ -249,17 +300,59 @@ def test_zeroshot_3d_core(
             # 根据每个类别的分类次数，投票确定每个点该分为哪一类
             point_seg_result = point_seg_result.max(dim=-1)[1]  # [B, N, K]->[B, N]
 
+            # 根据k-means的分类结果[B, N]，我们可以从feature[B, N, 6]中拆分出K个mini点云
+            # [N, 6]->[k, Nk, 6]
+
+            # 获得k-means后，每个大patch的点云数据
+            big_path_feature = []
+            # 遍历 batch
+            for b in range(B):
+                batch_big_path_feature = []  # 存放当前 batch 的分类结果
+                for k in range(K):
+                    # 找到当前 batch 中属于类别 k 的点的索引
+                    indices = (point_seg_result[b] == k).nonzero(as_tuple=True)[0]
+                    # 获取对应的点云数据
+                    selected_points = feature[b, indices]  # [Nk, 6]
+                    batch_big_path_feature.append(
+                        selected_points
+                    )  # 每一类是一个 Tensor，大小为 [Nk, 6]
+                big_path_feature.append(batch_big_path_feature)  # [B, K, NK, 6]
+
+            # 将k-means后的每个大patch点云 使用uni3d编码
+            for b in range(B):
+                k_means_patch_cls = []
+                for k in range(K):
+                    patch_point_feature = big_path_feature[b][k].unsqueeze(0)
+                    _, _, cls_token = utils.get_model(model).encode_pc(
+                        patch_point_feature
+                    )
+                    k_means_patch_cls.append(cls_token)
+                k_means_patch_cls = torch.stack(k_means_patch_cls, dim=0)#[K, 1, 1024]
+                k_means_patch_cls = k_means_patch_cls.squeeze(1)  # [K, 1024]
+
+                # 每个点云得到[K, 1024] 个大patch的编码特征
+                # 计算k-means后的每个大path的cls与文本的相似度
+                similarity_k_means_text_features = (
+                    k_means_patch_cls.float() @ segmentation_texts_features.float().t()
+                )  # 这里会得到[K, C]
+                value, index = torch.max(similarity_k_means_text_features, dim=-1)
+                # 新的分类结果 point_seg_result[B, N]
+                point_seg_result[b] = index[point_seg_result[b].cpu().numpy()]
+            #############编码完成###############
+            # 画图写入html
             xyz_cpu = xyz.cpu().numpy()
             point_seg_result_rgb = point_seg_result.cpu().numpy()
             for i in range(B):  # 遍历每个点云
+                update_class_counter(label_name[i])
                 save_point_cloud_html(
                     xyz_cpu[i, :, 0],
                     xyz_cpu[i, :, 1],
                     xyz_cpu[i, :, 2],
                     point_seg_result_rgb[i, :],
-                    args.seg_cat,
-                    batch_idx * 8 + i + 1,
+                    label_name[i],
+                    class_counters[label_name[i]],
                     part_data,
+                    args,
                     dataset_name="modelnet",
                 )
 

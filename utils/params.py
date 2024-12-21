@@ -30,7 +30,6 @@ def parse_args(args):
         default="openai",
         help="Path to the pretrained model or model name (e.g., laion2b_s9b_b144k).",
     )
-    
 
     parser.add_argument(
         "--pc-model",
@@ -39,7 +38,6 @@ def parse_args(args):
         help="Name of pointcloud backbone to use.",
     )
 
-   
     # Checkpoint path
     parser.add_argument(
         "--ckpt-path",
@@ -51,7 +49,7 @@ def parse_args(args):
     parser.add_argument(
         "--seg_cat",
         type=str,
-        default="airplane",
+        default="airplane",  # 下划线 "_" 代表不按特定类型切割数据集
         help="which category do you want segmente.",
     )
     parser.add_argument(
@@ -61,15 +59,13 @@ def parse_args(args):
         help="which category do you want segmente.",
     )
 
-    
     parser.add_argument(
         "--pretrained-pc",
-        default='',
+        default="",
         type=str,
         help="Use a pretrained CLIP model vision weights with the specified tag or file path.",
     )
 
-    
     parser.add_argument(
         "--lock-pointcloud",
         default=False,
@@ -99,7 +95,7 @@ def parse_args(args):
     parser.add_argument(
         "--workers", type=int, default=4, help="Number of dataloader workers per GPU."
     )
-    parser.add_argument("--batch-size", type=int, default=8, help="Batch size per GPU.")
+    parser.add_argument("--batch-size", type=int, default=1, help="Batch size per GPU.")
     parser.add_argument(
         "--epochs", type=int, default=32, help="Number of epochs to train for."
     )
@@ -496,7 +492,7 @@ def parse_args(args):
         "--pc_feat_dim", type=int, default=1408, help="Pointcloud feature dimension."
     )
 
-    # 设置点云 Transformer 中的分组大小，默认为 64。
+    # 设置点云 Transformer 中的分组大小
     parser.add_argument(
         "--group-size", type=int, default=64, help="Pointcloud Transformer group size."
     )
@@ -508,6 +504,14 @@ def parse_args(args):
         default=512,
         help="Pointcloud Transformer number of groups.",
     )
+    # 设置点云 Transformer 中的分组数量，默认为 512。
+    parser.add_argument(
+        "--k_means_num",
+        type=int,
+        default=8,
+        help="The number of k-means cluster.",
+    )
+
 
     # 设置点云 Transformer 编码器的维度，默认为 512。
     parser.add_argument(

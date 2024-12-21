@@ -1,7 +1,8 @@
 data/test_datasets.zip
 data/test_datasets
 data/__pycache__
-checkpoints/model.pt
+checkpoints/model_giant.pt
+checkpoints/model_base.pt
 !checkpoints/.gitkeep
 !data/test_datasets/.gitkeep
 !clip_model.gitkeep
@@ -10,3 +11,4 @@ seg_res_html
 logs
 models/__pycache__
 .devcontainer
+.index.html

@@ -5,7 +5,7 @@ import numpy as np
 from torch import nn
 from . import losses
 from .point_encoder import PointcloudEncoder
-
+from .mini_point_encoder import MiniPointcloudEncoder
 
 class Uni3D(nn.Module):
 
@@ -21,8 +21,9 @@ class Uni3D(nn.Module):
         color = pc[:, :, 3:].contiguous()
 
         # 模型验证调用此方法返回编码后的点云特征
-        patch_features, my_idx = self.point_encoder(xyz, color)
-        return patch_features, my_idx
+        patch_features, my_idx,cls_token = self.point_encoder(xyz, color)
+        return patch_features, my_idx,cls_token
+    
 
     # 验证不需要用到forward
     def forward(self, pc, text, image):

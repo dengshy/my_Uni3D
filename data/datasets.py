@@ -232,16 +232,19 @@ class ModelNet40_openshape(data.Dataset):
             lines = [line.rstrip() for line in lines]
         for i in range(len(lines)):
             self.cate_to_id[lines[i]] = str(i)
-            
-        self.my_pcs = np.array([]) 
-        self.my_openshape_split = []
-        for index in range(len(self.openshape_split)):  # 使用range来生成迭代的序列
-            # 需要处理pcs,opshape_split,cate_to_id
-            # 获取类别名称和对应的标签
-            label_name = self.openshape_split[index]["category"]
-            if label_name == self.seg_cat:
-                self.my_pcs = np.append(self.my_pcs, self.pcs[index])
-                self.my_openshape_split.append(self.openshape_split[index])
+        if  self.seg_cat !="_":
+            self.my_pcs = np.array([]) 
+            self.my_openshape_split = []
+            for index in range(len(self.openshape_split)):  # 使用range来生成迭代的序列
+                # 需要处理pcs,opshape_split,cate_to_id
+                # 获取类别名称和对应的标签
+                label_name = self.openshape_split[index]["category"]
+                if label_name == self.seg_cat:
+                    self.my_pcs = np.append(self.my_pcs, self.pcs[index])
+                    self.my_openshape_split.append(self.openshape_split[index])
+        else:
+            self.my_pcs = self.pcs
+            self.my_openshape_split = self.openshape_split
                 
 
     def __len__(self):

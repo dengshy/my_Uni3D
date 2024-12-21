@@ -262,18 +262,21 @@ class PointcloudEncoder(nn.Module):
         x8 = self.visual.norm(x8[:, 1:, :])
         # 使用patch features
         x12 = self.visual.norm(x[:, 1:, :])
-        cls_token = self.visual.norm(x[:, 0, :])  # 添加全局信息
-        cls_token = cls_token.unsqueeze(1).expand(-1, x.shape[1] - 1, -1)
-        weights = torch.tensor([1.0, 1.0, 1.0, 100.0, 20.0])
+        
+        cls_token = self.visual.norm(x[:, 0, :])  # 全局信息
+        cls_token= self.visual.fc_norm(cls_token)
+        cls_token = self.trans2embed(cls_token)
+        
+        weights = torch.tensor([1.0, 1.0, 1.0, 10.0])
         patch_features = (
             x0 * weights[0]
             + x4 * weights[1]
             + x8 * weights[2]
             + x12 * weights[3]
-            + cls_token * weights[4]
+        
         )
         patch_features = self.visual.fc_norm(patch_features)
 
         patch_features = self.trans2embed(patch_features)
 
-        return patch_features, my_idx
+        return patch_features, my_idx,cls_token
