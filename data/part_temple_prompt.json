@@ -1,0 +1,21 @@
+{
+    "airplane": [
+        "airplane with a damaged left wing",
+        "airplane with a damaged right wing",
+        "airplane with a damaged tail wing",
+        "airplane with a damaged fuselage",
+        "airplane with a damaged engine",
+        "airplane with a propeller and a damaged propeller",
+        "airplane with wheels and damaged wheels"
+    ],
+    "_": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+    ]
+}

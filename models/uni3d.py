@@ -5,7 +5,7 @@ import numpy as np
 from torch import nn
 from . import losses
 from .point_encoder import PointcloudEncoder
-from .mini_point_encoder import MiniPointcloudEncoder
+
 
 class Uni3D(nn.Module):
 

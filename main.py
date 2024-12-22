@@ -165,9 +165,13 @@ def test_zeroshot_3d_core(
     with open(os.path.join("./data", "templates.json")) as f:
         templates = json.load(f)[args.validate_dataset_prompt]
 
-    # 加载分割提示
-    with open(os.path.join("./data", "part_temple.json")) as f:
+    # 加载分割部件提示
+    with open(os.path.join("./data", "part_temple_prompt.json")) as f:
         part_data = json.load(f)
+    
+    # 加载分割部件标签
+    with open(os.path.join("./data", "part_temple_label.json")) as f:
+        part_data_label = json.load(f)
 
     part_temple = part_data[args.seg_cat]
 
@@ -218,7 +222,7 @@ def test_zeroshot_3d_core(
 
             # 使用k-means 类聚检查patch_features的效果
             batch_labels = []
-            batch_cluster_centers = []
+            # batch_cluster_centers = []
 
             for i in range(patch_features.shape[0]):
                 # 当前 batch 的特征
@@ -304,28 +308,29 @@ def test_zeroshot_3d_core(
             # [N, 6]->[k, Nk, 6]
 
             # 获得k-means后，每个大patch的点云数据
-            big_path_feature = []
+            entire_batch_big_path_features = []
             # 遍历 batch
             for b in range(B):
-                batch_big_path_feature = []  # 存放当前 batch 的分类结果
+                single_pc_big_path_features = []  # 存放当前 batch 的分类结果
                 for k in range(K):
                     # 找到当前 batch 中属于类别 k 的点的索引
-                    indices = (point_seg_result[b] == k).nonzero(as_tuple=True)[0]
+                    indices = (point_seg_result[b] != k).nonzero(as_tuple=True)[0]
                     # 获取对应的点云数据
                     selected_points = feature[b, indices]  # [Nk, 6]
-                    batch_big_path_feature.append(
+                    single_pc_big_path_features.append(
                         selected_points
                     )  # 每一类是一个 Tensor，大小为 [Nk, 6]
-                big_path_feature.append(batch_big_path_feature)  # [B, K, NK, 6]
+                entire_batch_big_path_features.append(single_pc_big_path_features)  # [B, K, NK, 6]
 
             # 将k-means后的每个大patch点云 使用uni3d编码
             for b in range(B):
                 k_means_patch_cls = []
                 for k in range(K):
-                    patch_point_feature = big_path_feature[b][k].unsqueeze(0)
+                    patch_point_feature = entire_batch_big_path_features[b][k].unsqueeze(0)
                     _, _, cls_token = utils.get_model(model).encode_pc(
                         patch_point_feature
                     )
+                    cls_token=cls_token/cls_token.norm(dim=-1,keepdim=True)
                     k_means_patch_cls.append(cls_token)
                 k_means_patch_cls = torch.stack(k_means_patch_cls, dim=0)#[K, 1, 1024]
                 k_means_patch_cls = k_means_patch_cls.squeeze(1)  # [K, 1024]
@@ -351,7 +356,7 @@ def test_zeroshot_3d_core(
                     point_seg_result_rgb[i, :],
                     label_name[i],
                     class_counters[label_name[i]],
-                    part_data,
+                    part_data_label,
                     args,
                     dataset_name="modelnet",
                 )
